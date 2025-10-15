@@ -1,0 +1,21 @@
+
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+.env/
+
+# Data
+data/
+*.csv
+*.h5
+*.npy
+
+# Logs
+*.log
+
+# VSCode / IDE files
+.vscode/
+.idea/
