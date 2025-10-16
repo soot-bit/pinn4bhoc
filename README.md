@@ -3,7 +3,7 @@
 ## Introduction
 This module can  be used to train a Physics-Informed Neural Network (PINN) [1, 2] to solve the following nonlinear ordinary differential equation (ODE):
 ```math
-\overset{\textstyle\cdot\cdot}{u}  \: + \: u - \: 3 \: \frac{u^2}{2}  = \: 0 ,
+\overset{\textstyle\cdot\cdot}{u}  \: + \: u - \: 3 \: \frac{u^2}{2}  =  0 ,
 ```
 which describes the orbit of photons in a Schwarzschild spacetime about a spherically symmetric body of mass $M$.
 
@@ -12,13 +12,16 @@ The variable of interest here is
 ```math
   u = \frac{r_s }{ r},
 ```
-where $r_s$, the Schwarzschild radius, is defined as $r_s = \: \frac{2 G M}{c^2},$ where $G$ is Newton's gravitational constant and $c$ is the speed of light in vacuum. If $C$ is the proper circumference of a circle centered at the center of mass,
+where $r_s$, the Schwarzschild radius, is defined as $r_s =  \frac{2 G M}{c^2},$ where $G$ is Newton's gravitational constant and $c$ is the speed of light in vacuum. If $C$ is the proper circumference of a circle centered at the center of mass,
 in a Schwarzschild spacetime, the radial coordinate is *defined by* $r \equiv \frac{C}{2\pi}$ and differs from the proper radial distance.
 The overdot here ($\overset{\textstyle\cdot\cdot}{u}$) indicates differentiation with respect to $\phi$, the azimuthal angle in a spherical polar coordinate system, $(r, \theta, \phi)$. Here $\theta$ is set to $\pi \, / \, 2$ without loss of generality.
 
 The initial conditions are
 ```math
-u\,(0) = u_0 \\
+u\,(0) = u_0
+```
+and
+```math
 \overset{\textstyle\cdot}{u}\,(0) = v_0.
 ```
 
@@ -28,7 +31,10 @@ The ODE is solved using a PINN following the approach in [3]. The neural network
 We use the following Ansatz from the theory of connections (ToC) [4] that incorporates the initial conditions explicitly:
 
 ```math
-    u(\phi; u_0, v_0)  = u_0 + g_\beta(\phi; u_0, v_0) - g_\beta(0; u_0, v_0) + \phi \left[ v_0 - \dot{g}_\beta(0; u_0, v_0) \right], \\
+    u(\phi; u_0, v_0)  = u_0 + g_\beta(\phi; u_0, v_0) - g_\beta(0; u_0, v_0) + \phi \left[ v_0 - \dot{g}_\beta(0; u_0, v_0) \right],
+```
+and
+```math
     \dot{u}(\phi; u_0, v_0) = v_0 + \dot{g}_\beta(\phi; u_0, v_0) - \dot{g}_\beta(0; u_0, v_0),
 ```
 
