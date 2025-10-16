@@ -1,2 +1,3 @@
-# pinn4bhoc: A Black Hole Photon Orbit Solver using Physics Informed Neural Networks
+# pinn4bhoc 
+## A PINN-based Black Hole Photon Orbit Solver
 
