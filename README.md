@@ -1,3 +1,2 @@
-# pinn4bhoc 
-## A PINN-based Black Hole Photon Orbit Solver
+# pinn4bhoc PINN for Black Hole Photon Orbit Calculator
 
