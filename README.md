@@ -12,9 +12,9 @@ The variable of interest here is
 ```math
   u = \frac{r_s }{ r},
 ```
-where $r_s$, the Schwarzschild radius, is defined as $r_s =  2 G M \, / \, c^2,$ where $G$ is Newton's gravitational constant and $c$ is the speed of light in vacuum. If $C$ is the proper circumference of a circle centered at the center of mass,
-in a Schwarzschild spacetime, the radial coordinate is *defined by* $r \equiv C \, / \, (2\pi)$ and differs from the proper radial distance.
-The overdot here ($\overset{\textstyle\cdot\cdot}{u}$) indicates differentiation with respect to $\phi$, the azimuthal angle in a spherical polar coordinate system, $(r, \theta, \phi)$. Here $\theta$ is set to $\pi \, / \, 2$ without loss of generality.
+where $r_s$, the Schwarzschild radius, is defined as $r_s =  2 G M  /  c^2,$ where $G$ is Newton's gravitational constant and $c$ is the speed of light in vacuum. If $C$ is the proper circumference of a circle centered at the center of mass,
+in a Schwarzschild spacetime, the radial coordinate is *defined by* $r \equiv C  /  (2\pi)$ and differs from the proper radial distance.
+The overdot here ($\overset{\textstyle\cdot\cdot}{u}$) indicates differentiation with respect to $\phi$, the azimuthal angle in a spherical polar coordinate system, $(r, \theta, \phi)$. Here $\theta$ is set to $\pi  /  2$ without loss of generality.
 
 The initial conditions are
 ```math
