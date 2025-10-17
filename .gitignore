@@ -2,12 +2,21 @@
 # Byte-compiled / cache files
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 
 # Virtual environments
 venv/
 .env/
+.venv/       # uv creates this
 
-# Data
+# pyenv
+.python-version
+
+# uv lock file
+uv.lock
+
+# Data files
 data/
 *.csv
 *.h5
@@ -19,3 +28,11 @@ data/
 # VSCode / IDE files
 .vscode/
 .idea/
+*.egg-info/
+
+# Jupyter / notebooks
+.ipynb_checkpoints/
+notebooks/*.ipynb
+
+# OS files
+.DS_Store

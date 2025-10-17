@@ -44,4 +44,30 @@ and
 [3] Aditi S. Krishnapriyan, Amir Gholami, Shandian Zhe, Robert M. Kirby, Michael W. Mahoney, *Characterizing possible failure modes in physics-informed neural networks*, NIPS'21: Proceedings of the 35th International Conference on Neural Information Processing Systems; [arXiv:2109.01050](https://arxiv.org/abs/2109.01050)  
 [4] D. Mortari, *The Theory of Connections: Connecting Points*, Mathematics, vol. 5, no. 57, 2017.
 
+## Getting Started
 
+Clone the repository:
+
+```
+
+git clone https://github.com/soot-bit/pinn4bhoc.git
+cd pinn4bhoc
+
+```
+
+inside a virtual environment:
+Install the project in editable mode (installs dependencies too):
+
+```
+
+pip install -e .
+
+```
+
+Verify the installation:
+
+```
+
+python -c "import pinn4bhoc; print(pinn4bhoc.**version**)"
+
+```
