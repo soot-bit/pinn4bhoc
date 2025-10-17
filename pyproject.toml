@@ -22,3 +22,5 @@ name = "pinn4bhoc"
 version = "0.1.0"
 editable = true
 packages = [""]
+package-dir = {"" = "src"}
+
