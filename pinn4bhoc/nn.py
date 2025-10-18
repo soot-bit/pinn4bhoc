@@ -4,9 +4,9 @@ import time
 import matplotlib.pyplot as plt
 import os
 import csv
-from pinn.utils.data import ensure_dir_exists
-from pinn.pinn_core import compute_avg_loss
-from pinn.utils.monitoring import plot_cost_curves
+from pinn4bhoc.utils.data import ensure_dir_exists
+from pinn4bhoc.pinn_core import compute_avg_loss
+from pinn4bhoc.utils.monitoring import plot_cost_curves
 
 try:
     from IPython.display import clear_output

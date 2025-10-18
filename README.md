@@ -68,6 +68,6 @@ Verify the installation:
 
 ```
 
-python -c "from pinn import nn"
+python -c "from pinn4bhoc import nn"
 
 ```
