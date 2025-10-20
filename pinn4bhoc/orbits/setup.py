@@ -1,6 +1,9 @@
 import numpy as np
 
+# Boomerang orbit parameters
+# ---------------------------------------
 # domain of PINN
+DPHI = 0.1  # phi slice
 #          phi,   u0,   v0
 LOWER = [ 0.00, 0.10, -1.0]
 UPPER = [ DPHI, 0.99,  1.0]
