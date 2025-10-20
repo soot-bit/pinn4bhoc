@@ -1,3 +1,8 @@
+# ----------------------------------------------------------------------------
+# Description: code associated with NN models
+# Created: Mar 2025
+# Updated: Mon Oct 20, 2025: move compute_avg_loss to nn.py from pinn_copy.py
+# ----------------------------------------------------------------------------
 import torch
 import torch.nn as nn
 import time
@@ -5,9 +10,8 @@ import matplotlib.pyplot as plt
 import os
 import csv
 from pinn4bhoc.utils.data import ensure_dir_exists
-from pinn4bhoc.pinn_core import compute_avg_loss
 from pinn4bhoc.utils.monitoring import plot_cost_curves
-
+# ----------------------------------------------------------------------------
 try:
     from IPython.display import clear_output
 
@@ -22,6 +26,38 @@ def count_trainable_parameters(model: torch.nn.Module) -> int:
     """
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+
+def compute_avg_loss(objective, loader):
+    """
+    Compute the scalar cost from a single (phi, init_conds) batch.
+
+    Parameters
+    ----------
+    objective : callable
+        A function that maps (phi, init_conds) tensors to a scalar tensor
+        representing the cost. Expected input shapes:
+            - phi: Tensor of shape (N, 1)
+            - init_conds: Tensor of shape (N, 2)
+        where N is the batch size.
+
+    loader : DataLoader
+        A custom DataLoader expected to yield exactly one batch. This
+        is typically enforced by setting the dataset size equal to the
+        batch size.
+
+    Returns
+    -------
+    float
+        The scalar cost value, detached from the computation graph and
+        moved to the CPU for logging or analysis.
+    """
+    # assert len(loader) == 1, "Loader must yield exactly one batch"
+
+    for phi, init_conds in loader:
+        # Detach from computation tree and send to CPU (if on a GPU)
+        avg_loss = float(objective(phi, init_conds).detach().cpu())
+
+    return avg_loss
 
 def format_elapsed_time(now_fn, start_time: float):
     """
@@ -420,3 +456,153 @@ def is_significant_drop_in_cost(val_cost, best_cost, drop_threshold=0.005):
     if best_cost is None:
         return True
     return val_cost < (1 - drop_threshold) * best_cost
+# ----------------------------------------------------------------------------
+class Config:
+    '''
+        Manage simple ML application configuration
+
+          name:      name stub for all files, including the yaml file
+          batchsize: 
+          niter:     number of iterations
+          base_lr:   base learning rate
+          network:   network structure (n_hidden, n_width)
+            :
+          etc.
+    '''
+    def __init__(self, name, verbose=0):
+        import time
+        '''
+        name:   name stub for all files, including the yaml file, or 
+                the name of a yaml file. A json file is identified 
+                by the extension .yaml
+                
+                    1. if name is a name stub, create a new yaml object.
+                
+                    2. if name is a yaml filename, create the yaml object
+                       from the file.
+        '''
+        self.time = time.ctime()
+        
+        # check if a yaml file has been specified
+        if name.endswith('.yaml') or name.endswith('.yml'):
+            self.cfg_filename = name # cache filename
+            self.load(name)
+        else:
+            # this not a yaml file specification, assume it is a name stub
+            # and build a Python dictionary that specifies the structure of
+            # 
+            self.cfg = {}
+            cfg = self.cfg
+            
+            cfg['name'] = name
+    
+            # construct output file names    
+            fcg = {}
+            fcg['losses']     = f'{name}_losses.csv'
+            fcg['params']     = f'{name}_params.pth'
+            fcg['initparams'] = f'{name}_init_params.pth'
+            
+            cfg['file'] = fcg
+    
+            # create a default name for yaml configuration file
+            # this name will be used if a filename is not
+            # specified in the save method
+            self.cfg_filename = f'{name}_config.yaml'
+    
+        if verbose:
+            print(self.__str__())
+            
+    def load(self, filename):
+        # make sure file exists
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f'{filename}')
+        
+        # read yaml file and cache as Python dictionary
+        with open(filename, mode="r") as file:
+            self.cfg = yaml.safe_load(file)
+
+    def save(self, filename=None):
+        # if no filename specified use default filename
+        if filename == None:
+            filename = self.cfg_filename
+
+        # require .yaml extension
+        if not (filename.endswith('.yaml') or filename.endswith('.yml')):
+            raise NameError('the output file must have extension .yaml')
+            
+        # save to yaml file
+        open(filename, 'w').write(self.__str__())
+        
+    def __call__(self, key, value=None):
+        '''
+        Return the value of the specified key.
+
+        Notes
+        -----
+        1. If the key is in the dictionary and value is specified then 
+        update the value of the key and return the value, otherwise 
+        return the existing value of the key.
+
+        2. If the key is not in the dictionary add it to the dictionary with
+        the specified value and return the value. If no value is given raise 
+        a KeyError exception.
+        '''
+        # this method can be used to fill out the rest
+        # of the Python dictionary
+        keys = key.split('/')
+        
+        # if key exists and value !=None update the value
+        # else return its value
+        cfg = self.cfg
+        
+        for ii, lkey in enumerate(keys):
+            depth = ii + 1
+            
+            if lkey in cfg:
+                # key is in dictionary
+                
+                val = cfg[lkey]
+                if depth < len(keys):
+                    # recursion
+                    cfg = val
+                else:
+                    if type(value) == type(None):
+                        # key exists and no value has been specified
+                        # so return existing value
+                        value = val
+                    else:
+                        # key exists and a value has been specified
+                        # so update key and return new value
+                        cfg[key] = value # update value
+                    break
+            else:
+                # key is not in dictionary object, so add it
+                
+                if value == None:
+                    # no value specified, so we can't add this key
+                    raise KeyError(f'key "{lkey}" not found')
+                    
+                elif depth < len(keys):
+                    cfg[lkey] = {}
+                    cfg = cfg[lkey]
+                else:
+                    try:
+                        cfg[lkey] = value
+                    except:
+                        pkey = keys[ii-1]
+                        print(
+                            f'''
+    Warning: key '{key}' not created because '{pkey}' is 
+    of type {str(type(pkey))}
+                        ''')
+        return value
+
+    def __str__(self):
+        # return a pretty printed string of the yaml object (help from ChatGPT)
+        return str(yaml.dump(
+            self.cfg,                 
+            sort_keys=False,           # keep key order
+            default_flow_style=False,  # use block style 
+            indent=1,                  # indentation level
+            allow_unicode=True))
+    
