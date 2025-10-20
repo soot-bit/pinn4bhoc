@@ -18,15 +18,13 @@ try:
     HAS_CLEAR_OUTPUT = True
 except ImportError:
     HAS_CLEAR_OUTPUT = False
-
-
+# ----------------------------------------------------------------------------
 def count_trainable_parameters(model: torch.nn.Module) -> int:
     """
     Returns the number of trainable parameters in the model.
     """
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-
+# ----------------------------------------------------------------------------
 def compute_avg_loss(objective, loader):
     """
     Compute the scalar cost from a single (phi, init_conds) batch.
@@ -58,7 +56,7 @@ def compute_avg_loss(objective, loader):
         avg_loss = float(objective(phi, init_conds).detach().cpu())
 
     return avg_loss
-
+# ----------------------------------------------------------------------------
 def format_elapsed_time(now_fn, start_time: float):
     """
     Computes and formats elapsed time.
@@ -77,8 +75,7 @@ def format_elapsed_time(now_fn, start_time: float):
     m = int((etime % 3600) // 60)
     s = etime % 60
     return f"{h:02}:{m:02}:{int(s):02}", etime, (h, m, s)
-
-
+# ----------------------------------------------------------------------------
 class Sin(nn.Module):
     """Sine activation function for neural networks."""
 
@@ -87,8 +84,7 @@ class Sin(nn.Module):
 
     def forward(self, x):
         return torch.sin(x)
-
-
+# ----------------------------------------------------------------------------
 class FCNN(nn.Module):
     """Fully-connected neural network with sine activation function.
 
@@ -135,8 +131,82 @@ class FCNN(nn.Module):
         # Output layer
         out = self.output_layer(x)
         return out
+# ----------------------------------------------------------------------------
+class Solution(nn.Module):
+    """
+    Solution ansatz using Theory of Connections (ToC) for 2nd-order ODEs:
+        u(φ) = u₀ + g(φ) - g(0) + φ * (v₀ - dg/dφ|_{φ=0})
 
+    Corresponding code variables:
+        u = u0 + gphi - g0 + phi * (v0 - gdot0)
 
+    Enforces exact initial conditions:
+        u(0) = u0
+        du/dφ|_{φ=0} = v0
+    """
+
+    def __init__(self, net):
+        super().__init__()
+        self.g = net  # FCNN model
+
+    def train(self):
+        self.g.train()
+
+    def eval(self):
+        self.g.eval()
+
+    def save(self, dictfile):
+        # Save model parameters
+        torch.save(self.g.state_dict(), dictfile)
+
+    def load(self, dictfile):
+        # Load model parameters and set to eval mode
+        self.g.load_state_dict(
+            torch.load(dictfile, weights_only=True, map_location=torch.device("cpu"))
+        )
+        self.eval()
+
+    def forward(self, phi, init_conds):
+        """
+        Applies the ToC-based ansatz to enforce initial/boundary conditions:
+        u(φ) = u₀ + g(φ) - g(0) + φ * (v₀ - dg/dφ|_{φ=0})
+
+        Assumes:
+        - phi: shape (batch_size, 1)
+        - init_conds: shape (batch_size, 2) or (2,)
+        """
+
+        # Zero input with gradient tracking for computing dg/dphi at phi=0
+        zeros = torch.zeros_like(phi, requires_grad=True)
+        g0 = self.g(zeros, init_conds)
+        gphi = self.g(phi, init_conds)
+
+        # Compute dg/dφ evaluated at φ=0
+        gdot0 = torch.autograd.grad(
+            g0, zeros, grad_outputs=torch.ones_like(g0), create_graph=True
+        )[0]
+
+        # Handle batched or unbatched initial conditions
+        if init_conds.ndim == 1:
+            u0 = init_conds[0].view(-1, 1)
+            v0 = init_conds[1].view(-1, 1)
+        else:
+            u0 = init_conds[:, 0].view(-1, 1)
+            v0 = init_conds[:, 1].view(-1, 1)
+
+        # ToC: apply the ansatz to enforce exact boundary constraints
+        u = u0 + gphi - g0 + phi * (v0 - gdot0)
+        return u
+
+    def diff(self, u, phi):
+        """
+        Computes du/dφ using autograd
+        """
+        du = torch.autograd.grad(
+            u, phi, grad_outputs=torch.ones_like(phi), create_graph=True
+        )[0]
+        return du
+# ----------------------------------------------------------------------------
 class Objective(nn.Module):
     """
     Defines the physics-based loss for the PINN.
@@ -178,13 +248,9 @@ class Objective(nn.Module):
         residuals = d2u + u - 1.5 * u**2
 
         return residuals if self.return_residuals else torch.mean(residuals**2)
-
-
 # -------------------------------------------------------------------------
 # Training Utilities
 # -------------------------------------------------------------------------
-
-
 def print_milestones_and_lrs(
     base_lr, n_steps, milestones, gamma, n_max_iterations=None
 ):
@@ -216,7 +282,7 @@ def print_milestones_and_lrs(
     if n_max_iterations is not None:
         print(f"\nTotal number of iterations: {n_max_iterations:10d}\n")
 
-
+# ----------------------------------------------------------------------------
 def train_pinn(
     train_loader,
     val_loader,
@@ -430,8 +496,7 @@ def train_pinn(
     # Cost plot
     if plot_filename:
         print(f"  - Cost plot:      {plot_filename}")
-
-
+# ----------------------------------------------------------------------------
 def is_significant_drop_in_cost(val_cost, best_cost, drop_threshold=0.005):
     """
     Decide whether the current validation cost represents a significant drop.
