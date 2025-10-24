@@ -74,5 +74,6 @@ python -c "from pinn4bhoc import nn"
 
 ## Google Colab installation `pinn4bhoc`
   1. Upload `clone2colab.ipynb` from your local installation of repo `pinn4bhoc` to your working folder on GitHub.
-  2. Open `clone2colab.ipynb` and set COLAB_FOLDER (default name AIMS)
+  2. Open `clone2colab.ipynb` and set COLAB_FOLDER (default name AIMS).
+  3. If all is well, open work notebook.
 
