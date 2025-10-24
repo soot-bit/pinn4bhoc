@@ -74,7 +74,7 @@ python -c "from pinn4bhoc import nn"
 
 ## Google Colab installation `pinn4bhoc`
   1. Assign Colab working folder to string `COLAB_FOLDER` in notebook.
-  2. Execute code below in before imports in your notebook (see, for example, `01_pinn_training.ipynb`).
+  2. Execute the code below in a notebook cell before your imports (see, for example, `01_pinn_training.ipynb`).
 ```python
 COLAB_FOLDER = 'AIMS' # change as needed
 GITHUB_USER  = 'soot-bit'
