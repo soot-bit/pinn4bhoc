@@ -34,7 +34,7 @@ def compute_u0_v0(r0, delta, in_degrees=True, eps=np.pi/1000):
         angle = delta * np.pi / 180
     else:
         angle = delta
-    assert(np.pi-eps > delta > eps)
+    #assert(np.pi-eps > delta > eps)
 
     v0 = u0 * np.sqrt(1-u0) / np.tan(delta)
     return  u0, v0
