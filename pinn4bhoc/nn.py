@@ -581,14 +581,14 @@ class Config:
             cfg['name'] = name
     
             # construct output file names    
-            fcg = {}
+            o_cfg = {}
 
-            fcg['losses']     = f'{basedir}/{name}_losses.csv'
-            fcg['params']     = f'{basedir}/{name}_params.pth'
-            fcg['init_params']= f'{basedir}/{name}_init_params.pth'
-            fcg['plots']      = f'{basedir}/{name}_plots.png'
+            o_cfg['losses']     = f'{basedir}/{name}_losses.csv'
+            o_cfg['params']     = f'{basedir}/{name}_params.pth'
+            o_cfg['init_params']= f'{basedir}/{name}_init_params.pth'
+            o_cfg['plots']      = f'{basedir}/{name}_plots.png'
             
-            cfg['file'] = fcg
+            cfg['file'] = o_cfg
     
             # create a default name for yaml configuration file
             # this name will be used if a filename is not
