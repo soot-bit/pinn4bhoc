@@ -562,7 +562,7 @@ class Config:
         self.time = time.ctime()
 
         # create run folder
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M")
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
         basedir = f"runs/{timestamp}"
         os.makedirs("runs", exist_ok=True)
         os.makedirs(basedir, exist_ok=True)
