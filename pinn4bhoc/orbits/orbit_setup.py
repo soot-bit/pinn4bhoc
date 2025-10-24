@@ -27,7 +27,7 @@ COLOR = ['blue', 'steelblue', 'green',
 # convert to u0, v0
 # ----------------------------------
 def compute_u0_v0(r0, delta, in_degrees=True, eps=np.pi/1000):
-    assert(r0 > 1)
+    #assert(r0 > 1)
     u0 = 1 / r0
     
     if in_degrees:
