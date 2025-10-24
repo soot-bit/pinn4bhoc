@@ -5,12 +5,12 @@ description = "pinn4bhoc"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "matplotlib>=3.10.7",
-    "numpy>=2.3.4",
-    "pandas>=2.3.3",
-    "scipy>=1.16.2",
-    "seaborn>=0.13.2",
-    "torch>=2.9.0",
+#    "matplotlib>=3.10.7",
+#    "numpy>=2.3.4",
+#    "pandas>=2.3.3",
+#    "scipy>=1.16.2",
+#    "seaborn>=0.13.2",
+#    "torch>=2.9.0",
 ]
 
 [build-system]
