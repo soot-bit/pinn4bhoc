@@ -9,6 +9,8 @@ import time
 import matplotlib.pyplot as plt
 import os
 import csv
+import yaml
+from datetime import datetime
 from pinn4bhoc.utils.data import ensure_dir_exists
 from pinn4bhoc.utils.monitoring import plot_cost_curves
 # ----------------------------------------------------------------------------
@@ -131,6 +133,17 @@ class FCNN(nn.Module):
         # Output layer
         out = self.output_layer(x)
         return out
+
+    def save(self, dictfile):
+        # Save model parameters
+        torch.save(self.state_dict(), dictfile)
+
+    def load(self, dictfile):
+        # Load model parameters and set to eval mode
+        self.load_state_dict(
+            torch.load(dictfile, weights_only=True, map_location=torch.device("cpu"))
+        )
+        self.eval()
 # ----------------------------------------------------------------------------
 class Solution(nn.Module):
     """
@@ -547,6 +560,12 @@ class Config:
                        from the file.
         '''
         self.time = time.ctime()
+
+        # create run folder
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M")
+        basedir = f"runs/{timestamp}"
+        os.makedirs("runs", exist_ok=True)
+        os.makedirs(basedir, exist_ok=True)
         
         # check if a yaml file has been specified
         if name.endswith('.yaml') or name.endswith('.yml'):
@@ -563,16 +582,18 @@ class Config:
     
             # construct output file names    
             fcg = {}
-            fcg['losses']     = f'{name}_losses.csv'
-            fcg['params']     = f'{name}_params.pth'
-            fcg['initparams'] = f'{name}_init_params.pth'
+
+            fcg['losses']     = f'{basedir}/{name}_losses.csv'
+            fcg['params']     = f'{basedir}/{name}_params.pth'
+            fcg['init_params']= f'{basedir}/{name}_init_params.pth'
+            fcg['plots']      = f'{basedir}/{name}_plots.png'
             
             cfg['file'] = fcg
     
             # create a default name for yaml configuration file
             # this name will be used if a filename is not
             # specified in the save method
-            self.cfg_filename = f'{name}_config.yaml'
+            self.cfg_filename = f'{basedir}/{name}_config.yaml'
     
         if verbose:
             print(self.__str__())

@@ -26,11 +26,25 @@ COLOR = ['blue', 'steelblue', 'green',
 # ----------------------------------                
 # convert to u0, v0
 # ----------------------------------
+def compute_u0_v0(r0, delta, in_degrees=True, eps=np.pi/1000):
+    assert(r0 > 1)
+    u0 = 1 / r0
+    
+    if in_degrees:
+        angle = delta * np.pi / 180
+    else:
+        angle = delta
+    assert(np.pi-eps > delta > eps)
+
+    v0 = u0 * np.sqrt(1-u0) / np.tan(delta)
+    return  u0, v0
+
+# photon initial radial coordinates in units of the Schwarzschild radius
 R0 = INIT_COND[:, 0]
 
-# photon emission angles
-DELTA = INIT_COND[:, 1] * np.pi / 180
+# photon emission angles (in degrees)
+DELTA = INIT_COND[:, 1]
 
 # initial conditions in (u, v) space
-U0 = 1/R0
-V0 = U0 * np.sqrt(1 - U0) / np.tan(DELTA)
+U0, V0 = compute_u0_v0(R0, DELTA)
+
