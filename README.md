@@ -73,7 +73,32 @@ python -c "from pinn4bhoc import nn"
 ```
 
 ## Google Colab installation `pinn4bhoc`
-  1. Upload `clone2colab.ipynb` from your local installation of repo `pinn4bhoc` to your working folder on GitHub.
-  2. Open `clone2colab.ipynb` and set COLAB_FOLDER (default name AIMS).
-  3. If all is well, open work notebook.
+  1. Assign Colab working folder to string `COLAB_FOLDER` in notebook.
+  2. Execute code below in before imports in your notebook (see, for example, `01_pinn_training.ipynb`).
+```python
+COLAB_FOLDER = 'AIMS' # change as needed
+GITHUB_USER  = 'soot-bit'
+GITHUB_REPO  = 'pinn4bhoc'
+GITHUB_FOLDERS = ['pinn4bhoc']
+#------------------------------------------------------
+MYDRIVE      = '/content/gdrive/MyDrive'
+GITHUB_BASE  = 'https://raw.githubusercontent.com'
+GITHUB_PATH  = f'{MYDRIVE}/{COLAB_FOLDER}'
+#------------------------------------------------------
+try:
+    from google.colab import drive
+    drive.mount('/content/gdrive')
+    print('\nGoogle Drive mounted\n')
+    IN_COLAB = True
+except:
+    print('\nRunning locally\n')
+    IN_COLAB = False
+ 
+if IN_COLAB:
+    %cd {GITHUB_PATH}
+    %rm -f {GITHUB_PATH}/clone2colab.ipynb
+    !wget -q {GITHUB_BASE}/{GITHUB_USER}/{GITHUB_REPO}/refs/heads/main/clone2colab.ipynb
+    %run {GITHUB_PATH}/clone2colab.ipynb
+    %ls
+```
 
