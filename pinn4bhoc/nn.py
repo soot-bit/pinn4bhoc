@@ -1,28 +1,64 @@
+# ----------------------------------------------------------------------------
+# Description: code associated with NN models
+# Created: Mar 2025
+# Updated: Mon Oct 20, 2025: move compute_avg_loss to nn.py from pinn_copy.py
+# ----------------------------------------------------------------------------
 import torch
 import torch.nn as nn
 import time
 import matplotlib.pyplot as plt
 import os
 import csv
+import yaml
+from datetime import datetime
 from pinn4bhoc.utils.data import ensure_dir_exists
-from pinn4bhoc.pinn_core import compute_avg_loss
 from pinn4bhoc.utils.monitoring import plot_cost_curves
-
+# ----------------------------------------------------------------------------
 try:
     from IPython.display import clear_output
 
     HAS_CLEAR_OUTPUT = True
 except ImportError:
     HAS_CLEAR_OUTPUT = False
-
-
+# ----------------------------------------------------------------------------
 def count_trainable_parameters(model: torch.nn.Module) -> int:
     """
     Returns the number of trainable parameters in the model.
     """
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+# ----------------------------------------------------------------------------
+def compute_avg_loss(objective, loader):
+    """
+    Compute the scalar cost from a single (phi, init_conds) batch.
 
+    Parameters
+    ----------
+    objective : callable
+        A function that maps (phi, init_conds) tensors to a scalar tensor
+        representing the cost. Expected input shapes:
+            - phi: Tensor of shape (N, 1)
+            - init_conds: Tensor of shape (N, 2)
+        where N is the batch size.
 
+    loader : DataLoader
+        A custom DataLoader expected to yield exactly one batch. This
+        is typically enforced by setting the dataset size equal to the
+        batch size.
+
+    Returns
+    -------
+    float
+        The scalar cost value, detached from the computation graph and
+        moved to the CPU for logging or analysis.
+    """
+    # assert len(loader) == 1, "Loader must yield exactly one batch"
+
+    for phi, init_conds in loader:
+        # Detach from computation tree and send to CPU (if on a GPU)
+        avg_loss = float(objective(phi, init_conds).detach().cpu())
+
+    return avg_loss
+# ----------------------------------------------------------------------------
 def format_elapsed_time(now_fn, start_time: float):
     """
     Computes and formats elapsed time.
@@ -41,8 +77,7 @@ def format_elapsed_time(now_fn, start_time: float):
     m = int((etime % 3600) // 60)
     s = etime % 60
     return f"{h:02}:{m:02}:{int(s):02}", etime, (h, m, s)
-
-
+# ----------------------------------------------------------------------------
 class Sin(nn.Module):
     """Sine activation function for neural networks."""
 
@@ -51,8 +86,7 @@ class Sin(nn.Module):
 
     def forward(self, x):
         return torch.sin(x)
-
-
+# ----------------------------------------------------------------------------
 class FCNN(nn.Module):
     """Fully-connected neural network with sine activation function.
 
@@ -100,7 +134,92 @@ class FCNN(nn.Module):
         out = self.output_layer(x)
         return out
 
+    def save(self, dictfile):
+        # Save model parameters
+        torch.save(self.state_dict(), dictfile)
 
+    def load(self, dictfile):
+        # Load model parameters and set to eval mode
+        self.load_state_dict(
+            torch.load(dictfile, weights_only=True, map_location=torch.device("cpu"))
+        )
+        self.eval()
+# ----------------------------------------------------------------------------
+class Solution(nn.Module):
+    """
+    Solution ansatz using Theory of Connections (ToC) for 2nd-order ODEs:
+        u(φ) = u₀ + g(φ) - g(0) + φ * (v₀ - dg/dφ|_{φ=0})
+
+    Corresponding code variables:
+        u = u0 + gphi - g0 + phi * (v0 - gdot0)
+
+    Enforces exact initial conditions:
+        u(0) = u0
+        du/dφ|_{φ=0} = v0
+    """
+
+    def __init__(self, net):
+        super().__init__()
+        self.g = net  # FCNN model
+
+    def train(self):
+        self.g.train()
+
+    def eval(self):
+        self.g.eval()
+
+    def save(self, dictfile):
+        # Save model parameters
+        torch.save(self.g.state_dict(), dictfile)
+
+    def load(self, dictfile):
+        # Load model parameters and set to eval mode
+        self.g.load_state_dict(
+            torch.load(dictfile, weights_only=True, map_location=torch.device("cpu"))
+        )
+        self.eval()
+
+    def forward(self, phi, init_conds):
+        """
+        Applies the ToC-based ansatz to enforce initial/boundary conditions:
+        u(φ) = u₀ + g(φ) - g(0) + φ * (v₀ - dg/dφ|_{φ=0})
+
+        Assumes:
+        - phi: shape (batch_size, 1)
+        - init_conds: shape (batch_size, 2) or (2,)
+        """
+
+        # Zero input with gradient tracking for computing dg/dphi at phi=0
+        zeros = torch.zeros_like(phi, requires_grad=True)
+        g0 = self.g(zeros, init_conds)
+        gphi = self.g(phi, init_conds)
+
+        # Compute dg/dφ evaluated at φ=0
+        gdot0 = torch.autograd.grad(
+            g0, zeros, grad_outputs=torch.ones_like(g0), create_graph=True
+        )[0]
+
+        # Handle batched or unbatched initial conditions
+        if init_conds.ndim == 1:
+            u0 = init_conds[0].view(-1, 1)
+            v0 = init_conds[1].view(-1, 1)
+        else:
+            u0 = init_conds[:, 0].view(-1, 1)
+            v0 = init_conds[:, 1].view(-1, 1)
+
+        # ToC: apply the ansatz to enforce exact boundary constraints
+        u = u0 + gphi - g0 + phi * (v0 - gdot0)
+        return u
+
+    def diff(self, u, phi):
+        """
+        Computes du/dφ using autograd
+        """
+        du = torch.autograd.grad(
+            u, phi, grad_outputs=torch.ones_like(phi), create_graph=True
+        )[0]
+        return du
+# ----------------------------------------------------------------------------
 class Objective(nn.Module):
     """
     Defines the physics-based loss for the PINN.
@@ -142,13 +261,9 @@ class Objective(nn.Module):
         residuals = d2u + u - 1.5 * u**2
 
         return residuals if self.return_residuals else torch.mean(residuals**2)
-
-
 # -------------------------------------------------------------------------
 # Training Utilities
 # -------------------------------------------------------------------------
-
-
 def print_milestones_and_lrs(
     base_lr, n_steps, milestones, gamma, n_max_iterations=None
 ):
@@ -180,7 +295,7 @@ def print_milestones_and_lrs(
     if n_max_iterations is not None:
         print(f"\nTotal number of iterations: {n_max_iterations:10d}\n")
 
-
+# ----------------------------------------------------------------------------
 def train_pinn(
     train_loader,
     val_loader,
@@ -394,8 +509,7 @@ def train_pinn(
     # Cost plot
     if plot_filename:
         print(f"  - Cost plot:      {plot_filename}")
-
-
+# ----------------------------------------------------------------------------
 def is_significant_drop_in_cost(val_cost, best_cost, drop_threshold=0.005):
     """
     Decide whether the current validation cost represents a significant drop.
@@ -420,3 +534,161 @@ def is_significant_drop_in_cost(val_cost, best_cost, drop_threshold=0.005):
     if best_cost is None:
         return True
     return val_cost < (1 - drop_threshold) * best_cost
+# ----------------------------------------------------------------------------
+class Config:
+    '''
+        Manage simple ML application configuration
+
+          name:      name stub for all files, including the yaml file
+          batchsize: 
+          niter:     number of iterations
+          base_lr:   base learning rate
+          network:   network structure (n_hidden, n_width)
+            :
+          etc.
+    '''
+    def __init__(self, name, verbose=0):
+        import time
+        '''
+        name:   name stub for all files, including the yaml file, or 
+                the name of a yaml file. A json file is identified 
+                by the extension .yaml
+                
+                    1. if name is a name stub, create a new yaml object.
+                
+                    2. if name is a yaml filename, create the yaml object
+                       from the file.
+        '''
+        self.time = time.ctime()
+
+        # create run folder
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M")
+        basedir = f"runs/{timestamp}"
+        os.makedirs("runs", exist_ok=True)
+        os.makedirs(basedir, exist_ok=True)
+        
+        # check if a yaml file has been specified
+        if name.endswith('.yaml') or name.endswith('.yml'):
+            self.cfg_filename = name # cache filename
+            self.load(name)
+        else:
+            # this not a yaml file specification, assume it is a name stub
+            # and build a Python dictionary that specifies the structure of
+            # 
+            self.cfg = {}
+            cfg = self.cfg
+            
+            cfg['name'] = name
+    
+            # construct output file names    
+            fcg = {}
+
+            fcg['losses']     = f'{basedir}/{name}_losses.csv'
+            fcg['params']     = f'{basedir}/{name}_params.pth'
+            fcg['init_params']= f'{basedir}/{name}_init_params.pth'
+            fcg['plots']      = f'{basedir}/{name}_plots.png'
+            
+            cfg['file'] = fcg
+    
+            # create a default name for yaml configuration file
+            # this name will be used if a filename is not
+            # specified in the save method
+            self.cfg_filename = f'{basedir}/{name}_config.yaml'
+    
+        if verbose:
+            print(self.__str__())
+            
+    def load(self, filename):
+        # make sure file exists
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f'{filename}')
+        
+        # read yaml file and cache as Python dictionary
+        with open(filename, mode="r") as file:
+            self.cfg = yaml.safe_load(file)
+
+    def save(self, filename=None):
+        # if no filename specified use default filename
+        if filename == None:
+            filename = self.cfg_filename
+
+        # require .yaml extension
+        if not (filename.endswith('.yaml') or filename.endswith('.yml')):
+            raise NameError('the output file must have extension .yaml')
+            
+        # save to yaml file
+        open(filename, 'w').write(self.__str__())
+        
+    def __call__(self, key, value=None):
+        '''
+        Return the value of the specified key.
+
+        Notes
+        -----
+        1. If the key is in the dictionary and value is specified then 
+        update the value of the key and return the value, otherwise 
+        return the existing value of the key.
+
+        2. If the key is not in the dictionary add it to the dictionary with
+        the specified value and return the value. If no value is given raise 
+        a KeyError exception.
+        '''
+        # this method can be used to fill out the rest
+        # of the Python dictionary
+        keys = key.split('/')
+        
+        # if key exists and value !=None update the value
+        # else return its value
+        cfg = self.cfg
+        
+        for ii, lkey in enumerate(keys):
+            depth = ii + 1
+            
+            if lkey in cfg:
+                # key is in dictionary
+                
+                val = cfg[lkey]
+                if depth < len(keys):
+                    # recursion
+                    cfg = val
+                else:
+                    if type(value) == type(None):
+                        # key exists and no value has been specified
+                        # so return existing value
+                        value = val
+                    else:
+                        # key exists and a value has been specified
+                        # so update key and return new value
+                        cfg[key] = value # update value
+                    break
+            else:
+                # key is not in dictionary object, so add it
+                
+                if value == None:
+                    # no value specified, so we can't add this key
+                    raise KeyError(f'key "{lkey}" not found')
+                    
+                elif depth < len(keys):
+                    cfg[lkey] = {}
+                    cfg = cfg[lkey]
+                else:
+                    try:
+                        cfg[lkey] = value
+                    except:
+                        pkey = keys[ii-1]
+                        print(
+                            f'''
+    Warning: key '{key}' not created because '{pkey}' is 
+    of type {str(type(pkey))}
+                        ''')
+        return value
+
+    def __str__(self):
+        # return a pretty printed string of the yaml object (help from ChatGPT)
+        return str(yaml.dump(
+            self.cfg,                 
+            sort_keys=False,           # keep key order
+            default_flow_style=False,  # use block style 
+            indent=1,                  # indentation level
+            allow_unicode=True))
+    

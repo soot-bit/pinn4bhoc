@@ -1,9 +1,11 @@
+# ----------------------------------------------------------------------------
+# Description: code associated with data set handling.
+# ----------------------------------------------------------------------------
 from scipy.stats import qmc
 import torch
-from torch.utils.data import Dataset
+import torch.utils.data as dt
 import numpy as np
-
-
+# ----------------------------------------------------------------------------
 def ensure_dir_exists(filepath):
     """
     Ensure the directory for the given filepath exists.
@@ -14,8 +16,7 @@ def ensure_dir_exists(filepath):
     directory = os.path.dirname(filepath)
     if directory and not os.path.exists(directory):
         os.makedirs(directory, exist_ok=True)
-
-
+# ----------------------------------------------------------------------------
 class SobolSample:
     """
     Generates a Sobol sequence of points in a D-dimensional cube.
@@ -59,8 +60,7 @@ class SobolSample:
 
     def __getitem__(self, idx):
         return self.sample[idx]
-
-
+# ----------------------------------------------------------------------------
 class UniformSample:
     """
     Generates a uniform random sample in a D-dimensional cube.
@@ -94,9 +94,8 @@ class UniformSample:
 
     def __getitem__(self, idx):
         return self.sample[idx]
-
-
-class Dataset(Dataset):
+# ----------------------------------------------------------------------------
+class Dataset(dt.Dataset):
     """
     Tensor dataset for PINN training from SobolSample or UniformSample.
 
@@ -152,7 +151,7 @@ class Dataset(Dataset):
             assert isinstance(random_sample_size, int)
             length = end - start
             assert length > 0
-            indices = torch.randint(0, length - 1, size=(random_sample_size,))
+            indices = torch.randint(start, end - 1, size=(random_sample_size,))
             tdata = torch.Tensor(data[indices])
 
         self.phi_vals = tdata[:, 0].reshape(-1, 1).requires_grad_().to(device)
@@ -169,104 +168,139 @@ class Dataset(Dataset):
     def __getitem__(self, idx):
         return self.phi_vals[idx], self.init_conds[idx]
 
-
+# ---------------------------------------------------------------------------
+# Custom DataLoader that is much faster than the default usage of the PyTorch
+# DataLoader.
+# ---------------------------------------------------------------------------
 class DataLoader:
-    """
-    Custom data loader that is much faster than the default PyTorch DataLoader.
+    '''
+    A data loader that is much faster than the default PyTorch DataLoader.
 
     Notes:
-    - If num_iterations is specified, it is assumed that this is the
-      desired maximum number of iterations (maxiter) per for-loop.
-      The flag shuffle is set to True, and an internal count, defined by
 
-            shuffle_step = floor(len(dataset) / batch_size)
+       If num_iterations is specified, it is assumed that this is the
+       desired maximum number of iterations, maxiter, per for-loop.
+       The flag shuffle is automatically set to True and an internal
+       count, defined by shuffle_step = floor(len(dataset) / batch_size)
+       is computed. The indices for accessing items from the dataset
+       are shuffled every time the following condition is True
 
-      is computed. The indices for accessing items from the dataset
-      are shuffled every time the following condition is True:
+           itnum % shuffle_step == 0,
 
-            itnum % shuffle_step == 0,
+       where itnum is an internal counter that keeps track of the iteration
+       number. If num_iterations is not specified (the default), then
+       the maximum number of iterations, maxiter = shuffle_step.
 
-      where itnum is an internal counter that keeps track of the iteration
-      number
-    - If num_iterations is not specified (the default), then
-            maxiter = shuffle_step.
+       This data loader, unlike the PyTorch data loader does not provide the
+       option to return the last batch if the latter is shorter than batch_size.
 
-    - This data loader does not return the last batch if it is shorter
-      than batch_size.
-    """
+       This class uses the Python generator pattern
+    '''
+    def __init__(self, dataset,
+                 batch_size=None,
+                 num_iterations=None,
+                 verbose=1,
+                 debug=0,
+                 shuffle=False):
 
-    def __init__(
-        self,
-        dataset,
-        batch_size=None,
-        num_iterations=None,
-        verbose=1,
-        debug=0,
-        shuffle=False,
-    ):
         self.dataset = dataset
-        self.size = batch_size
-        self.niterations = num_iterations
+        self.batch_size = batch_size
+        self.num_iterations = num_iterations
         self.verbose = verbose
-        self.debug = debug
+        self.debug   = debug
         self.shuffle = shuffle
 
-        if self.size is None:
-            raise ValueError("You must specify batch_size")
+        self.size = len(dataset)
 
-        self.shuffle_step = int(len(dataset) / self.size)
+        # need batch_size
+        if self.batch_size is None:
+            raise ValueError("you must specify a batch_size!")
 
-        if self.niterations is not None:
-            assert isinstance(self.niterations, int) and self.niterations > 0
-            self.maxiter = self.niterations
-            self.shuffle = True  # force shuffle mode
+        # if shuffle, then shuffle the dataset every shuffle_step iterations
+        self.shuffle_step = max(1, self.size // self.batch_size)
 
-        elif len(self.dataset) > self.size:
+        if self.verbose:
+            print('DataLoader')
+
+        if self.num_iterations is not None:
+            if self.verbose:
+                print('  Number of iterations has been specified')
+
+            # the user has specified the number of iterations
+            assert(type(self.num_iterations)==type(0))
+            assert(self.num_iterations > 0)
+
+            self.maxiter = self.num_iterations
+
+            # IMPORTANT: shuffle indices every self.shuffle_step iterations
+            self.shuffle = True  
+            
+        elif self.size > self.batch_size:
             self.maxiter = self.shuffle_step
-
+            
         else:
             # Note: this could be = 2 for a 2-tuple of tensors!
-            self.size = len(self.dataset)
             self.shuffle_step = 1
             self.maxiter = self.shuffle_step
 
         if self.verbose:
-            print("PINN DataLoader")
-            if self.niterations is not None:
-                print(
-                    f"  ** Maximum number of iterations specified to: {self.niterations} **"
-                )
-            print(f"  maxiter:      {self.maxiter:10d}")
-            print(f"  batch_size:   {self.size:10d}")
-            print(f"  shuffle_step: {self.shuffle_step:10d}")
+            print(f'  maxiter:      {self.maxiter:10d}')
+            print(f'  batch_size:   {self.batch_size:10d}')
+            print(f'  shuffle_step: {self.shuffle_step:10d}')
+            print()
 
-        assert self.maxiter > 0
+        assert(self.maxiter > 0)
+
+        # initialize iteration number
         self.itnum = 0
 
+        # initial indices for dataset (useful for debugging)
+        self.indices = torch.arange(self.size)
+
+    # ---------------------------------------------------------------------
+    # This method implements the Python generator pattern.
+    # The for loop
+    #  for batch in loader:
+    #          : :
+    # is logically equivalent to:
+    #
+    #  iterator = iter(loader) # call __iter__(self) once
+    #  while True
+    #     try:
+    #        batch = next(iterator) # which resumes execution at yield call
+    #     except StopIteration:
+    #        break
+    # ---------------------------------------------------------------------
     def __iter__(self):
-        self.itnum = 0  # reset at start of new iteration loop
-        return self
 
-    def __next__(self):
-        if self.itnum >= self.maxiter:
-            raise StopIteration
+        self.itnum = 0
+        while self.itnum < self.maxiter:
 
-        if self.shuffle:
-            if self.itnum % self.shuffle_step == 0:
-                if self.debug > 0:
-                    print(f"PINN DataLoader/shuffling indices @ iteration {self.itnum}")
-                self.indices = torch.randperm(len(self.dataset))
+            if self.shuffle:
+                # create a new tensor indexing dataset via a random
+                # sequence of indices
+                jtnum = self.itnum % self.shuffle_step
+                if self.itnum > 0 and jtnum == 0:
+                    self.indices = torch.randperm(self.size)
+                    if self.debug > 0:
+                        print(f'DataLoader shuffled indices @ index {self.itnum}')
 
-            start = (self.itnum % self.shuffle_step) * self.size
-            end = start + self.size
-            batch = self.dataset[self.indices[start:end]]
-        else:
-            start = self.itnum * self.size
-            end = start + self.size
-            batch = self.dataset[start:end]
+                start   = jtnum * self.batch_size
+                end     = start + self.batch_size
+                indices = self.indices[start:end]
+                batch   = self.dataset[indices]
+            else:
+                # create a new tensor directly indexing dataset
+                start   = self.itnum * self.batch_size
+                end     = start + self.batch_size
+                batch   = self.dataset[start:end]
 
-        self.itnum += 1
-        return batch
+            # increment iteration number
+            self.itnum += 1
+
+            # pause function and return a value
+            yield batch
 
     def __len__(self):
         return self.maxiter
+
