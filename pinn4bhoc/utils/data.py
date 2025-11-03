@@ -145,14 +145,14 @@ class Dataset(dt.Dataset):
             )
 
         if random_sample_size == None:
-            tdata = torch.Tensor(data[start:end])
+            tdata = torch.tensor(data[start:end])
         else:
             # Create a random sample from items in the specified range (start, end)
             assert isinstance(random_sample_size, int)
             length = end - start
             assert length > 0
             indices = torch.randint(start, end - 1, size=(random_sample_size,))
-            tdata = torch.Tensor(data[indices])
+            tdata = torch.tensor(data[indices])
 
         self.phi_vals = tdata[:, 0].reshape(-1, 1).requires_grad_().to(device)
         self.init_conds = tdata[:, 1:].to(device)
