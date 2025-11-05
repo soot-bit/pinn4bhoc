@@ -50,6 +50,7 @@ class SobolSample:
         sampler = qmc.Sobol(d=D, scramble=True)
         self.sample = sampler.random_base2(m=num_points_exp)
         self.sample = qmc.scale(self.sample, lower_bounds, upper_bounds)
+	self.sample = self.sample.astype(np.float32)
 
         if verbose:
             print(f"  SobolSample")
@@ -84,6 +85,7 @@ class UniformSample:
         D = len(lower_bounds)
         self.sample = np.random.uniform(0, 1, D * num_points).reshape((num_points, D))
         self.sample = qmc.scale(self.sample, lower_bounds, upper_bounds)
+        self.sample = self.sample.astype(np.float32)
 
         if verbose:
             print(f"  UniformSample")
