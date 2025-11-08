@@ -19,4 +19,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-#include = ["pinn4bhoc*"]
+include = ["pinn4bhoc*"]
+
+[project.urls]
+"Homepage" = "https://github.com/soot-bit/pinn4bhoc"
