@@ -36,7 +36,7 @@ def compute_u0_v0(r0, delta, in_degrees=True, eps=np.pi/1000):
         angle = delta
     #assert(np.pi-eps > delta > eps)
 
-    v0 = u0 * np.sqrt(1-u0) / np.tan(delta)
+    v0 = u0 * np.sqrt(1-u0) / np.tan(angle)
     return  u0, v0
 
 # photon initial radial coordinates in units of the Schwarzschild radius
