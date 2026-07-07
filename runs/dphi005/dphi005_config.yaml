@@ -1,0 +1,26 @@
+name: dphi005
+file:
+  losses: runs/dphi005/dphi005_losses.csv
+  params: runs/dphi005/dphi005_params.pth
+  init_params: runs/dphi005/dphi005_init_params.pth
+  plots: runs/dphi005/dphi005_plots.png
+dPhi: 0.05
+lower_bounds:
+- 0.0
+- 0.1
+- -1.0
+upper_bounds:
+- 0.05
+- 0.99
+- 1.0
+dataset_size_exponent: 16
+train_size: 65536
+val_size: 5000
+batch_size: 2048
+monitor_step: 2000
+delete: true
+num_steps: 5
+num_iters_per_step: 200000
+base_lr: 0.003
+gamma: 0.24
+val_cost_drop_threshold: 0.005
