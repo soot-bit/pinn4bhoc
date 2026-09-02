@@ -139,12 +139,25 @@ class FCNN(nn.Module):
         # Save model parameters
         torch.save(self.state_dict(), dictfile)
 
-    def load(self, dictfile):
+    def load(self, dictfile, weights_only=True):
         # Load model parameters and set to eval mode
         self.load_state_dict(
-            torch.load(dictfile, weights_only=True, map_location=torch.device("cpu"))
+            torch.load(dictfile, weights_only=weights_only, map_location=torch.device("cpu"))
         )
         self.eval()
+
+    def add(self):
+        # non-trainable tensor that should 
+        # be saved/loaded with the model
+        if dPhi is not None:
+            self.register_buffer('dPhi', torch.Tensor([dPhi]))
+
+        if lower_bounds is not None:
+            self.register_buffer('lower_bounds', torch.Tensor(lower_bounds))
+
+        if upper_bounds is not None:
+            self.register_buffer('upper_bounds', torch.Tensor(upper_bounds))
+
 # ----------------------------------------------------------------------------
 class Solution(nn.Module):
     """
@@ -159,9 +172,19 @@ class Solution(nn.Module):
         du/dφ|_{φ=0} = v0
     """
 
-    def __init__(self, net):
+    def __init__(self, net, 
+                 dPhi=-1, 
+                 lower_bounds=[-1,-1,-1], 
+                 upper_bounds=[-1,-1,-1]):
+        
         super().__init__()
         self.g = net  # FCNN model
+
+        # non-trainable tensor that should 
+        # be saved/loaded with the model
+        self.register_buffer('dPhi', torch.Tensor([dPhi]))
+        self.register_buffer('lower_bounds', torch.Tensor(lower_bounds))
+        self.register_buffer('upper_bounds', torch.Tensor(upper_bounds))
 
     def train(self):
         self.g.train()
@@ -170,13 +193,13 @@ class Solution(nn.Module):
         self.g.eval()
 
     def save(self, dictfile):
-        # Save model parameters
-        torch.save(self.g.state_dict(), dictfile)
+        # Save parameters in Solution and in embedded network
+        torch.save(self.state_dict(), dictfile)
 
-    def load(self, dictfile):
-        # Load model parameters and set to eval mode
-        self.g.load_state_dict(
-            torch.load(dictfile, weights_only=True, map_location=torch.device("cpu"))
+    def load(self, dictfile, weights_only=True):
+        # Load model parameters in Solution and in the network and set to eval mode
+        self.load_state_dict(
+            torch.load(dictfile, weights_only=weights_only, map_location=torch.device("cpu"))
         )
         self.eval()
 
