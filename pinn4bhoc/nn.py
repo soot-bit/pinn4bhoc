@@ -11,6 +11,7 @@ import os
 import csv
 import yaml
 from datetime import datetime
+
 from pinn4bhoc.utils.data import ensure_dir_exists
 from pinn4bhoc.utils.monitoring import plot_cost_curves
 # ----------------------------------------------------------------------------
@@ -191,8 +192,8 @@ class Solution(nn.Module):
 
         # Zero input with gradient tracking for computing dg/dphi at phi=0
         zeros = torch.zeros_like(phi, requires_grad=True)
-        g0 = self.g(zeros, init_conds)
-        gphi = self.g(phi, init_conds)
+        g0    = self.g(zeros, init_conds)
+        gphi  = self.g(phi, init_conds)
 
         # Compute dg/dφ evaluated at φ=0
         gdot0 = torch.autograd.grad(
@@ -591,6 +592,7 @@ class Config:
 
             o_cfg['losses']     = f'{logdir}/{name}_losses.csv'
             o_cfg['params']     = f'{logdir}/{name}_params.pth'
+            o_cfg['script']     = f'{logdir}/{name}_script.pth'
             o_cfg['init_params']= f'{logdir}/{name}_init_params.pth'
             o_cfg['plots']      = f'{logdir}/{name}_plots.png'
 
