@@ -2,6 +2,8 @@
 # Description: code associated with NN models
 # Created: Mar 2025
 # Updated: Mon Oct 20, 2025: move compute_avg_loss to nn.py from pinn_copy.py
+# Updated: Thu Sep 03, 2026: Add the possibility to specified a path to the
+#                            "runs" folder in Config.
 # ----------------------------------------------------------------------------
 import torch
 import torch.nn as nn
@@ -145,19 +147,6 @@ class FCNN(nn.Module):
             torch.load(dictfile, weights_only=weights_only, map_location=torch.device("cpu"))
         )
         self.eval()
-
-    def add(self):
-        # non-trainable tensor that should 
-        # be saved/loaded with the model
-        if dPhi is not None:
-            self.register_buffer('dPhi', torch.Tensor([dPhi]))
-
-        if lower_bounds is not None:
-            self.register_buffer('lower_bounds', torch.Tensor(lower_bounds))
-
-        if upper_bounds is not None:
-            self.register_buffer('upper_bounds', torch.Tensor(upper_bounds))
-
 # ----------------------------------------------------------------------------
 class Solution(nn.Module):
     """
@@ -172,19 +161,17 @@ class Solution(nn.Module):
         du/dφ|_{φ=0} = v0
     """
 
-    def __init__(self, net, 
-                 dPhi=-1, 
-                 lower_bounds=[-1,-1,-1], 
-                 upper_bounds=[-1,-1,-1]):
+    def __init__(self, net):
         
         super().__init__()
         self.g = net  # FCNN model
 
         # non-trainable tensor that should 
         # be saved/loaded with the model
-        self.register_buffer('dPhi', torch.Tensor([dPhi]))
-        self.register_buffer('lower_bounds', torch.Tensor(lower_bounds))
-        self.register_buffer('upper_bounds', torch.Tensor(upper_bounds))
+        # This causes backwards incompatibility with trained models
+        #self.register_buffer('dPhi', torch.Tensor([dPhi]))
+        #self.register_buffer('lower_bounds', torch.Tensor(lower_bounds))
+        #self.register_buffer('upper_bounds', torch.Tensor(upper_bounds))
 
     def train(self):
         self.g.train()
@@ -193,12 +180,12 @@ class Solution(nn.Module):
         self.g.eval()
 
     def save(self, dictfile):
-        # Save parameters in Solution and in embedded network
-        torch.save(self.state_dict(), dictfile)
+        # Save parameters of embedded network
+        torch.save(self.g.state_dict(), dictfile)
 
     def load(self, dictfile, weights_only=True):
-        # Load model parameters in Solution and in the network and set to eval mode
-        self.load_state_dict(
+        # Load model parameters into embedded network and set to eval mode
+        self.g.load_state_dict(
             torch.load(dictfile, weights_only=weights_only, map_location=torch.device("cpu"))
         )
         self.eval()
@@ -569,42 +556,76 @@ class Config:
             :
           etc.
     '''
-    def __init__(self, name, mkdir=True, dirname=None, verbose=0):
+    def __init__(self, name, dirname=None, dirpath=None, mkdir=True, verbose=0):
         '''
         name  : string   Stub for all files, including the yaml file, or 
-                         the name of a yaml file. A json file is identified 
+                         the name of a yaml file. A yaml file is identified 
                          by the extension .yaml
                 
                             1. if name is a name stub, create a new yaml object.
                             2. if name is a yaml filename, create the yaml object
                                from the file.
-                               
-        mkdir : bool     If True create log folder [True]. The default name is
-                         runs/<timestamp>.
-                         
-        dirname : string If given use this as the name of the folder: 
-                         runs/<dirname>.
+                                                        
+        dirname : string  If given use this as the name of the log folder: 
+                          runs/<dirname>
+
+        dirpath : string If given use this as the name of the log folder:
+                          <dirpath>/runs/<dirname>
+
+        mkdir : bool      If True create log folder [True]. Default name:
+                          runs/<name-with-time-stamp>
         '''
-        self.makedir = mkdir
+
         self.dirname = dirname
-        if self.dirname is None:
-            self.time = time.ctime()
-            self.dirname = datetime.now().strftime("%Y-%m-%d_%H%M")
-            
-        logdir = f"runs/{self.dirname}"
-        self.logdir = logdir
-        
-        # create run folder if self.makedir is True
-        self.mkdir()
-                
-        # check if a yaml file has been specified
+        self.dirpath = dirpath
+        self.makedir = mkdir
+          
+        # check if a yaml file has been specified. if so, modify logdir
+        # accordingly and update the paths to the associated files.
         if name.endswith('.yaml') or name.endswith('.yml'):
-            self.cfg_filename = name # cache filename
-            self.load(name)
+
+            # we have a yaml file
+            self.cfg_filename = name
+
+            # load configuration file
+            self.load(self.cfg_filename)
+
+            # remember to update name
+            name = self.cfg['name']
+            
+            # get associated logdir
+            logdir = os.path.dirname(self.cfg_filename)
+            self.logdir = f'{logdir}/' if logdir != '' else ''
+            
+            # update paths to other files assuming that they are
+            # in the same folder as the parameters file.
+            o_cfg = self.cfg['file']
+            o_cfg['losses']     = f'{self.logdir}{name}_losses.csv'
+            o_cfg['params']     = f'{self.logdir}{name}_params.pth'
+            o_cfg['script']     = f'{self.logdir}{name}_script.pth'
+            o_cfg['init_params']= f'{self.logdir}{name}_init_params.pth'
+            o_cfg['plots']      = f'{self.logdir}{name}_plots.png'
+
         else:
             # this not a yaml file specification, assume it is a name stub
-            # and build a Python dictionary that specifies the structure of
-            # 
+            # and build a Python dictionary to store configuration data.
+
+            if self.dirname is None:
+                self.time = time.ctime()
+                self.dirname = datetime.now().strftime("%Y-%m-%d_%H%M")
+                        
+            # create log folder
+            if self.makedir:
+                self.logdir = f"runs/{self.dirname}/"
+                
+                if self.dirpath is not None:
+                    if self.dirpath != '':
+                        self.logdir = f"{self.dirpath}/{self.logdir}"
+                    
+                os.makedirs(self.logdir, exist_ok=True) 
+            else:
+                self.logdir = ''
+                
             self.cfg = {}
             cfg = self.cfg
             
@@ -613,29 +634,24 @@ class Config:
             # construct output file names    
             o_cfg = {}
 
-            o_cfg['losses']     = f'{logdir}/{name}_losses.csv'
-            o_cfg['params']     = f'{logdir}/{name}_params.pth'
-            o_cfg['script']     = f'{logdir}/{name}_script.pth'
-            o_cfg['init_params']= f'{logdir}/{name}_init_params.pth'
-            o_cfg['plots']      = f'{logdir}/{name}_plots.png'
+            o_cfg['losses']     = f'{self.logdir}{name}_losses.csv'
+            o_cfg['params']     = f'{self.logdir}{name}_params.pth'
+            o_cfg['script']     = f'{self.logdir}{name}_script.pth'
+            o_cfg['init_params']= f'{self.logdir}{name}_init_params.pth'
+            o_cfg['plots']      = f'{self.logdir}{name}_plots.png'
 
             cfg['file'] = o_cfg
     
             # create a default name for yaml configuration file
             # this name will be used if a filename is not
             # specified in the save method
-            self.cfg_filename = f'{logdir}/{name}_config.yaml'
+            self.cfg_filename = f'{self.logdir}{name}_config.yaml'
     
         if verbose:
             print(self.__str__())
 
-    def mkdir(self):
-        if self.makedir:
-            os.makedirs("runs", exist_ok=True)
-            os.makedirs(self.logdir, exist_ok=True) 
-        
     def load(self, filename):
-        # make sure file exists
+        # make sure file exist        
         if not os.path.exists(filename):
             raise FileNotFoundError(f'{filename}')
         
