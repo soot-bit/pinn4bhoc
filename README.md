@@ -26,16 +26,16 @@ and
 ```
 
 ### Approach
-The ODE is solved using a PINN following the approach in [3]. The neural network is described by the function $g_\beta(\phi; u_0, v_0),$ where $\beta$ are the network's trainable weights.  
+The ODE is solved using a PINN following the approach in [3]. The neural network is described by the function $g_\beta(\phi, u_0, v_0),$ where $\beta$ are the network's trainable weights.  
   
 We use the following Ansatz from the theory of connections (ToC) [4] that incorporates the initial conditions explicitly:
 
 ```math
-    u(\phi; u_0, v_0)  = u_0 + g_\beta(\phi; u_0, v_0) - g_\beta(0; u_0, v_0) + \phi \left[ v_0 - \dot{g}_\beta(0; u_0, v_0) \right],
+    u(\phi, u_0, v_0)  = u_0 + g_\beta(\phi, u_0, v_0) - g_\beta(0, u_0, v_0) + \phi \left[ v_0 - \dot{g}_\beta(0, u_0, v_0) \right],
 ```
 and
 ```math
-    \dot{u}(\phi; u_0, v_0) = v_0 + \dot{g}_\beta(\phi; u_0, v_0) - \dot{g}_\beta(0; u_0, v_0),
+    \dot{u}(\phi, u_0, v_0) = v_0 + \dot{g}_\beta(\phi, u_0, v_0) - \dot{g}_\beta(0, u_0, v_0),
 ```
 
 ### References
