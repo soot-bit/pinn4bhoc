@@ -98,10 +98,8 @@ python -c "from pinn4bhoc import nn"
 
 ## Notebooks
 
-| Notebook | Description | Colab |
-|---|---|---|
-| [`notebooks/01_pinn_training.ipynb`](notebooks/01_pinn_training.ipynb) | Train the `PhotonOrbitSolver` PINN and save the scripted model | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/soot-bit/pinn4bhoc/blob/tlotlo%2Fmods/notebooks/01_pinn_training.ipynb) |
-| [`notebooks/02_pinn_testing_prototype.ipynb`](notebooks/02_pinn_testing_prototype.ipynb) | Test a trained PINN solution and plot photon orbits | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/soot-bit/pinn4bhoc/blob/tlotlo%2Fmods/notebooks/02_pinn_testing_prototype.ipynb) |
+- **Training** &mdash; [`notebooks/01_pinn_training.ipynb`](notebooks/01_pinn_training.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/soot-bit/pinn4bhoc/blob/tlotlo%2Fmods/notebooks/01_pinn_training.ipynb)
+- **Testing** &mdash; [`notebooks/02_pinn_testing_prototype.ipynb`](notebooks/02_pinn_testing_prototype.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/soot-bit/pinn4bhoc/blob/tlotlo%2Fmods/notebooks/02_pinn_testing_prototype.ipynb)
 
 ## Google Colab installation `pinn4bhoc`
   1. Assign Colab working folder to string `COLAB_FOLDER` in notebook.
