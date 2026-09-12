@@ -1,19 +1,18 @@
 <div align="center">
 
 <pre style="font-size: 5pt; line-height: 1;">
-██████╗ ██╗███╗   ██╗███╗   ██╗██╗  ██╗██████╗ ██╗  ██╗ ██████╗  ██████╗
-██╔══██╗██║████╗  ██║████╗  ██║██║  ██║██╔══██╗██║  ██║██╔═══██╗██╔════╝
-██████╔╝██║██╔██╗ ██║██╔██╗ ██║███████║██████╔╝███████║██║   ██║██║     
-██╔═══╝ ██║██║╚██╗██║██║╚██╗██║╚════██║██╔══██╗██╔══██║██║   ██║██║     
-██║     ██║██║ ╚████║██║ ╚████║     ██║██████╔╝██║  ██║╚██████╔╝╚██████╗
-╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝  ╚═══╝     ╚═╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝  ╚═════╝
+            ███                                     ████  ███                    
+           ░░░                                     ░░███ ░░░                     
+ ████████  ████ ████████  ████████   █████   ██████ ░███ ████   ██████  ████████ 
+░░███░░███░░███░░███░░███░░███░░███ ███░░   ███░░███░███░░███  ███░░███░░███░░███
+ ░███ ░███ ░███ ░███ ░███ ░███ ░███░░█████ ░███ ░░░ ░███ ░███ ░███████  ░███ ░░░ 
+ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░░░░███░███  ███░███ ░███ ░███░░░   ░███     
+ ░███████  █████████ █████████ ███████████ ░░██████ ██████████░░██████  █████    
+ ░███░░░  ░░░░░░░░░ ░░░░░░░░░ ░░░░░░░░░░░   ░░░░░░ ░░░░░░░░░░  ░░░░░░  ░░░░░     
+ ░███                                                                            
+ █████                                                                           
+░░░░░                                                                            
 </pre>
-
-<h1>pinn4bhoc</h1>
-
-<p><b>Physics-Informed Neural Network for Black-Hole Photon-Orbit Calculation</b></p>
-
-<p>Solving photon orbits in Schwarzschild spacetime with a PINN + Theory of Connections ansatz.</p>
 
 <p>
   <a href="https://www.python.org/downloads/"><img alt="Python" src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=for-the-badge&logo=python&logoColor=white"></a>
@@ -25,7 +24,7 @@
 
 
 ## Introduction
-This module can  be used to train a Physics-Informed Neural Network (PINN) [1, 2] to solve the following nonlinear ordinary differential equation (ODE):
+This module can be used to train a Physics-Informed Neural Network (PINN) [1, 2] to solve the following nonlinear ordinary differential equation (ODE):
 ```math
 \overset{\textstyle\cdot\cdot}{u}  \: + \: u - \: 3 \: \frac{u^2}{2}  =  0 ,
 ```
@@ -61,6 +60,10 @@ and
 ```math
     \dot{u}(\phi, u_0, v_0) = v_0 + \dot{g}_\beta(\phi, u_0, v_0) - \dot{g}_\beta(0, u_0, v_0),
 ```
+so that the initial conditions hold by construction and the loss reduces to the ODE residual alone, with no weighting coefficients to tune.
+
+### Slicing
+The ODE is autonomous: it does not depend on $\phi$ explicitly, so the coordinate system can be rotated to any starting azimuthal angle. PINN-Slicer exploits this by training the network only on a thin slice $\phi \in [0, \Delta\phi]$, with $(u_0, v_0)$ Sobol-sampled over their range. The full orbit is then mapped out recursively: the solution $u(\Delta\phi)$ and its derivative $\dot{u}(\Delta\phi)$ at the end of one slice become the initial conditions of the next, until the photon escapes ($u \to 0$), crosses the event horizon ($u = 1$), or the requested $\phi$ range is reached. A single trained network therefore generalizes to any initial condition and to a solution domain that is not known a priori.
 
 ### References
 [1] B. Moseley, [Deep Learning in Scientific Computing (2023)](https://camlab.ethz.ch/teaching/deep-learning-in-scientific-computing-2023.html), ETH Zürich, Computational and Applied Mathematics Laboratory (CAMLab)  
@@ -74,8 +77,8 @@ Clone the repository:
 
 ```
 
-git clone https://github.com/soot-bit/pinn4bhoc.git
-cd pinn4bhoc
+git clone https://github.com/soot-bit/pinnslicer.git
+cd pinnslicer
 
 ```
 
@@ -92,18 +95,18 @@ Verify the installation:
 
 ```
 
-python -c "from pinn4bhoc import nn"
+python -c "from pinnslicer import nn"
 
 ```
 
-## Google Colab installation `pinn4bhoc`
+## Google Colab installation `pinnslicer`
   1. Assign Colab working folder to string `COLAB_FOLDER` in notebook.
   2. Execute the code below in a notebook cell before your imports (see, for example, `01_pinn_training.ipynb`).
 ```python
 COLAB_FOLDER = 'AIMS' # change as needed
 GITHUB_USER  = 'soot-bit'
-GITHUB_REPO  = 'pinn4bhoc'
-GITHUB_FOLDERS = ['pinn4bhoc']
+GITHUB_REPO  = 'pinnslicer'
+GITHUB_FOLDERS = ['pinnslicer']
 #------------------------------------------------------
 MYDRIVE      = '/content/gdrive/MyDrive'
 GITHUB_BASE  = 'https://raw.githubusercontent.com'

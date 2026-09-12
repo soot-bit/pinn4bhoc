@@ -35,3 +35,6 @@ data/
 
 # OS files
 .DS_Store
+
+# Generated figures
+figures/

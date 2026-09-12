@@ -1,7 +1,7 @@
 [project]
-name = "pinn4bhoc"
+name = "pinnslicer"
 version = "0.1.0"
-description = "pinn4bhoc"
+description = "PINN-Slicer: physics-informed neural network for black-hole photon orbits"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -23,7 +23,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["pinn4bhoc*"]
+include = ["pinnslicer*"]
 
 [project.urls]
-"Homepage" = "https://github.com/soot-bit/pinn4bhoc"
+"Homepage" = "https://github.com/soot-bit/pinnslicer"

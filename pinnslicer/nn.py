@@ -14,8 +14,8 @@ import csv
 import yaml
 from datetime import datetime
 
-from pinn4bhoc.utils.data import ensure_dir_exists
-from pinn4bhoc.utils.monitoring import plot_cost_curves
+from pinnslicer.utils.data import ensure_dir_exists
+from pinnslicer.utils.monitoring import plot_cost_curves
 # ----------------------------------------------------------------------------
 try:
     from IPython.display import clear_output
